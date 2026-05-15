@@ -87,40 +87,65 @@ export class IntegrationsController {
 
   @Get('/list')
   async getIntegrationList(@GetOrgFromRequest() org: Organization) {
-    return {
-      integrations: await Promise.all(
-        (
-          await this._integrationService.getIntegrationsList(org.id)
-        ).map(async (p) => {
-          const findIntegration = this._integrationManager.getSocialIntegration(
-            p.providerIdentifier
-          );
-          return {
-            name: p.name,
-            id: p.id,
-            internalId: p.internalId,
-            disabled: p.disabled,
-            editor: findIntegration.editor,
-            stripLinks: !!findIntegration?.stripLinks?.(),
-            picture: p.picture || '/no-picture.jpg',
-            identifier: p.providerIdentifier,
-            inBetweenSteps: p.inBetweenSteps,
-            refreshNeeded: p.refreshNeeded,
-            isCustomFields: !!findIntegration.customFields,
-            ...(findIntegration.customFields
-              ? { customFields: await findIntegration.customFields() }
-              : {}),
-            display: p.profile,
-            type: p.type,
-            time: JSON.parse(p.postingTimes),
-            changeProfilePicture: !!findIntegration?.changeProfilePicture,
-            changeNickName: !!findIntegration?.changeNickname,
-            customer: p.customer,
-            additionalSettings: p.additionalSettings || '[]',
-          };
-        })
-      ),
-    };
+    const integrations = await Promise.all(
+      (
+        await this._integrationService.getIntegrationsList(org.id)
+      ).map(async (p) => {
+        const findIntegration = this._integrationManager.getSocialIntegration(
+          p.providerIdentifier
+        );
+        return {
+          name: p.name,
+          id: p.id,
+          internalId: p.internalId,
+          disabled: p.disabled,
+          editor: findIntegration.editor,
+          stripLinks: !!findIntegration?.stripLinks?.(),
+          picture: p.picture || '/no-picture.jpg',
+          identifier: p.providerIdentifier,
+          inBetweenSteps: p.inBetweenSteps,
+          refreshNeeded: p.refreshNeeded,
+          isCustomFields: !!findIntegration.customFields,
+          ...(findIntegration.customFields
+            ? { customFields: await findIntegration.customFields() }
+            : {}),
+          display: p.profile,
+          type: p.type,
+          time: JSON.parse(p.postingTimes),
+          changeProfilePicture: !!findIntegration?.changeProfilePicture,
+          changeNickName: !!findIntegration?.changeNickname,
+          customer: p.customer,
+          additionalSettings: p.additionalSettings || '[]',
+        };
+      })
+    );
+
+    if (process.env.TIKTOK_MOCK_MODE === 'true') {
+      console.log('[TikTok Mock] injecting mock TikTok account into /integrations/list');
+      const tiktokProvider = this._integrationManager.getSocialIntegration('tiktok');
+      integrations.push({
+        name: 'TikTok Mock Account',
+        id: 'tiktok-mock',
+        internalId: 'tiktok-mock-internal',
+        disabled: false,
+        editor: tiktokProvider.editor,
+        stripLinks: false,
+        picture: '/icons/platforms/tiktok.png',
+        identifier: 'tiktok',
+        inBetweenSteps: false,
+        refreshNeeded: false,
+        isCustomFields: false,
+        display: '@tiktok_mock_account',
+        type: 'social',
+        time: [],
+        changeProfilePicture: false,
+        changeNickName: false,
+        customer: null,
+        additionalSettings: '[]',
+      });
+    }
+
+    return { integrations };
   }
 
   @Post('/:id/settings')
@@ -323,6 +348,16 @@ export class IntegrationsController {
     @GetOrgFromRequest() org: Organization,
     @Body() body: IntegrationFunctionDto
   ): Promise<any> {
+    if (process.env.TIKTOK_MOCK_MODE === 'true' && body.id === 'tiktok-mock') {
+      const tiktokProvider = this._integrationManager.getSocialIntegration('tiktok');
+      // @ts-ignore
+      if (tiktokProvider[body.name]) {
+        // @ts-ignore
+        return tiktokProvider[body.name]('__tiktok_mock_token__', body.data);
+      }
+      throw new Error(`[TikTok Mock] Function not found: ${body.name}`);
+    }
+
     const getIntegration = await this._integrationService.getIntegrationById(
       org.id,
       body.id

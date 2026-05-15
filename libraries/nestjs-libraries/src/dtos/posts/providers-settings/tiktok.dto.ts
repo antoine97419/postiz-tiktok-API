@@ -1,5 +1,5 @@
 import {
-  IsBoolean, ValidateIf, IsIn, IsString, MaxLength, IsOptional
+  IsBoolean, ValidateIf, IsIn, IsString, MaxLength, IsOptional, IsNotEmpty
 } from 'class-validator';
 
 export class TikTokDto {
@@ -7,6 +7,7 @@ export class TikTokDto {
   @MaxLength(90)
   title: string;
 
+  @IsNotEmpty()
   @IsIn([
     'PUBLIC_TO_EVERYONE',
     'MUTUAL_FOLLOW_FRIENDS',

@@ -16,6 +16,8 @@ import { hasExtension } from '@gitroom/helpers/utils/has.extension';
 import { Integration } from '@prisma/client';
 import { Rules } from '@gitroom/nestjs-libraries/chat/rules.description.decorator';
 
+const TIKTOK_MOCK_TOKEN = '__tiktok_mock_token__';
+
 @Rules(
   'TikTok can have one video or one picture or multiple pictures, it cannot be without an attachment'
 )
@@ -383,6 +385,61 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
     };
   }
 
+  async getCreatorInfo(accessToken: string): Promise<{
+    max_video_post_duration_sec: number;
+    privacy_level_options: string[] | null;
+    comment_disabled: boolean;
+    duet_disabled: boolean;
+    stitch_disabled: boolean;
+  }> {
+    if (accessToken === TIKTOK_MOCK_TOKEN && process.env.TIKTOK_MOCK_MODE === 'true') {
+      console.log('[TikTok Mock] getCreatorInfo called — returning mock data');
+      return {
+        max_video_post_duration_sec: 300,
+        privacy_level_options: [
+          'PUBLIC_TO_EVERYONE',
+          'MUTUAL_FOLLOW_FRIENDS',
+          'FOLLOWER_OF_CREATOR',
+          'SELF_ONLY',
+        ],
+        comment_disabled: false,
+        duet_disabled: false,
+        stitch_disabled: false,
+      };
+    }
+
+    const response = await fetch(
+      'https://open.tiktokapis.com/v2/post/publish/creator_info/query/',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+    const json = await response.json();
+    const data = json?.data ?? {};
+
+    console.log('[TikTok] creator_info loaded:', {
+      max_video_post_duration_sec: data.max_video_post_duration_sec,
+      privacy_level_options: data.privacy_level_options,
+      comment_disabled: data.comment_disabled,
+      duet_disabled: data.duet_disabled,
+      stitch_disabled: data.stitch_disabled,
+    });
+
+    return {
+      max_video_post_duration_sec: data.max_video_post_duration_sec ?? 0,
+      privacy_level_options: Array.isArray(data.privacy_level_options)
+        ? data.privacy_level_options
+        : null,
+      comment_disabled: !!data.comment_disabled,
+      duet_disabled: !!data.duet_disabled,
+      stitch_disabled: !!data.stitch_disabled,
+    };
+  }
+
   private async uploadedVideoSuccess(
     id: string,
     publishId: string,
@@ -471,8 +528,7 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
             ? { title: firstPost.message }
             : {}),
           ...(isPhoto ? { description: firstPost.message } : {}),
-          privacy_level:
-            firstPost.settings.privacy_level || 'PUBLIC_TO_EVERYONE',
+          privacy_level: firstPost.settings.privacy_level,
           ...(isPhoto
             ? {}
             : { disable_duet: !firstPost.settings.duet || false }),
@@ -547,6 +603,34 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
   ): Promise<PostResponse[]> {
     const [firstPost] = postDetails;
     const isPhoto = !hasExtension(firstPost?.media?.[0]?.path, 'mp4');
+
+    if (accessToken === TIKTOK_MOCK_TOKEN && process.env.TIKTOK_MOCK_MODE === 'true') {
+      console.log('[TikTok Mock] Publish simulated', {
+        privacyLevel: firstPost.settings.privacy_level,
+        brandContentToggle: firstPost.settings.brand_content_toggle,
+        brandOrganicToggle: firstPost.settings.brand_organic_toggle,
+        contentPostingMethod: firstPost.settings.content_posting_method,
+        isPhoto,
+      });
+      await timer(1500);
+      return [
+        {
+          id: firstPost.id,
+          releaseURL: 'https://www.tiktok.com/@tiktok_mock_account/video/mock123456',
+          postId: 'mock123456',
+          status: 'success',
+        },
+      ];
+    }
+
+    console.log('[TikTok] publish started', {
+      integrationId: id,
+      privacyLevel: firstPost.settings.privacy_level,
+      brandContentToggle: firstPost.settings.brand_content_toggle,
+      brandOrganicToggle: firstPost.settings.brand_organic_toggle,
+      contentPostingMethod: firstPost.settings.content_posting_method,
+      isPhoto,
+    });
 
     console.log({
       ...this.buildTikokPostInfoBody(firstPost),

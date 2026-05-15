@@ -173,6 +173,26 @@ export class PostsController {
     @GetOrgFromRequest() org: Organization,
     @Body() rawBody: any
   ) {
+    if (
+      process.env.TIKTOK_MOCK_MODE === 'true' &&
+      Array.isArray(rawBody?.posts) &&
+      rawBody.posts.some((p: any) => p?.integration?.id === 'tiktok-mock')
+    ) {
+      console.log('[TikTok Mock] Publish simulated — no real post created');
+      const mockId = `mock-${Date.now()}`;
+      return {
+        id: mockId,
+        posts: rawBody.posts
+          .filter((p: any) => p?.integration?.id === 'tiktok-mock')
+          .map((p: any) => ({
+            id: `mock-post-${Date.now()}`,
+            state: 'PUBLISHED',
+            releaseURL: 'https://www.tiktok.com/@tiktok_mock_account/video/mock123456',
+            integration: { identifier: 'tiktok', name: 'TikTok Mock Account' },
+          })),
+      };
+    }
+
     console.log(JSON.stringify(rawBody, null, 2));
     const body = await this._postsService.mapTypeToPost(rawBody, org.id);
     return this._postsService.createPost(org.id, body, 'WEB');

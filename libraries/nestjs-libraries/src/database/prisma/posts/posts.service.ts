@@ -972,15 +972,30 @@ export class PostsService {
   }
 
   async findFreeDateTime(orgId: string, integrationId?: string) {
+    console.log(`[find-slot] request received — org=${orgId} integrationId=${integrationId ?? 'none'}`);
+
     const findTimes = await this._integrationService.findFreeDateTime(
       orgId,
       integrationId
     );
-    return this.findFreeDateTimeRecursive(
+    console.log(`[find-slot] posting times loaded — count=${findTimes.length} times=${JSON.stringify(findTimes)}`);
+
+    if (findTimes.length === 0) {
+      // No posting schedule configured (e.g. only mock accounts, or no integrations in DB).
+      // Return next full hour so the modal opens immediately instead of hanging forever.
+      const fallback = dayjs.utc().add(1, 'hour').startOf('hour').format('YYYY-MM-DDTHH:mm:00');
+      console.log(`[find-slot] no posting times — returning fallback slot ${fallback}`);
+      return fallback;
+    }
+
+    console.log(`[find-slot] slot calculation started`);
+    const result = await this.findFreeDateTimeRecursive(
       orgId,
       findTimes,
       dayjs.utc().startOf('day')
     );
+    console.log(`[find-slot] slot calculation finished — result=${result}`);
+    return result;
   }
 
   async createPopularPosts(post: {
