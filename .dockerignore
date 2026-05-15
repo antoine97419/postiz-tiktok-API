@@ -21,3 +21,9 @@ dist
 .git
 .github
 reports
+coverage
+**/.cache
+**/.env
+**/*.log
+npm-debug.log*
+pnpm-debug.log*

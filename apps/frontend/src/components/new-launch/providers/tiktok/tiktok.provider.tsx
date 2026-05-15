@@ -4,6 +4,7 @@ import {
   FC,
   useEffect,
   useMemo,
+  useState,
 } from 'react';
 import {
   PostComment,
@@ -18,6 +19,7 @@ import { useIntegration } from '@gitroom/frontend/components/launches/helpers/us
 import { Input } from '@gitroom/react/form/input';
 import { TiktokPreview } from '@gitroom/frontend/components/new-launch/providers/tiktok/tiktok.preview';
 import { useCustomProviderFunction } from '@gitroom/frontend/components/launches/helpers/use.custom.provider.function';
+import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import useSWR from 'swr';
 
 interface TikTokCreatorInfo {
@@ -84,6 +86,8 @@ const TikTokSettings: FC<{ values?: any }> = () => {
   const { watch, register, setValue } = useSettings();
   const { integration, value } = useIntegration();
   const { data: creatorInfo, isLoading, error } = useTikTokCreatorInfo();
+  const mediaDir = useMediaDirectory();
+  const [videoDuration, setVideoDuration] = useState<number | null>(null);
 
   const isMock = integration?.name === 'TikTok Mock Account';
 
@@ -98,6 +102,28 @@ const TikTokSettings: FC<{ values?: any }> = () => {
   const content_posting_method = watch('content_posting_method');
   const privacy_level = watch('privacy_level');
   const isUploadMode = content_posting_method === 'UPLOAD';
+
+  const videoPath = useMemo(() => {
+    const mp4 = value?.[0]?.image?.find(
+      (p: any) => (p?.path?.indexOf?.('mp4') ?? -1) > -1
+    );
+    return mp4?.path ?? null;
+  }, [value]);
+
+  useEffect(() => {
+    if (!videoPath) {
+      setVideoDuration(null);
+      return;
+    }
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.src = mediaDir.set(videoPath);
+    video.onloadedmetadata = () => {
+      setVideoDuration(Math.round(video.duration));
+      video.src = '';
+    };
+    video.onerror = () => setVideoDuration(null);
+  }, [videoPath]);
 
   useEffect(() => {
     if (!disclose) {
@@ -165,6 +191,22 @@ const TikTokSettings: FC<{ values?: any }> = () => {
           <div className="flex gap-[8px]">
             <span className="text-gray-400 shrink-0">Privacy options loaded:</span>
             <span>{creatorInfo.privacy_level_options?.length ?? 0} options</span>
+          </div>
+          <div className="flex gap-[8px]">
+            <span className="text-gray-400 shrink-0">Current video duration:</span>
+            <span>{videoDuration !== null ? `${videoDuration}s` : '—'}</span>
+          </div>
+          <div className="flex gap-[8px]">
+            <span className="text-gray-400 shrink-0">Duration check:</span>
+            {videoDuration === null ? (
+              <span className="text-gray-400">—</span>
+            ) : videoDuration <= creatorInfo.max_video_post_duration_sec ? (
+              <span className="text-green-400">Passed</span>
+            ) : (
+              <span className="text-red-400">
+                Failed ({videoDuration}s &gt; {creatorInfo.max_video_post_duration_sec}s)
+              </span>
+            )}
           </div>
           <div className="flex gap-[8px]">
             <span className="text-gray-400 shrink-0">Interaction restrictions:</span>
