@@ -3,7 +3,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: postiz
     restart: always
     environment:
       # === Required Settings
@@ -113,8 +112,8 @@ services:
       # LINK_DRIP_SHORT_LINK_DOMAIN: "dripl.ink"
 
     volumes:
-      - postiz-config:/config/
-      - postiz-uploads:/uploads/
+      - postiz-tiktok-api-config:/config/
+      - postiz-tiktok-api-uploads:/uploads/
     ports:
       - "4007:5000"
     networks:
@@ -128,14 +127,15 @@ services:
 
   postiz-postgres:
     image: postgres:17-alpine
-    container_name: postiz-postgres
     restart: always
     environment:
       POSTGRES_PASSWORD: postiz-password
       POSTGRES_USER: postiz-user
       POSTGRES_DB: postiz-db-local
     volumes:
-      - postgres-volume:/var/lib/postgresql/data
+      - postiz-tiktok-api-postgres-data:/var/lib/postgresql/data
+    ports:
+      - "15432:5432"
     networks:
       - postiz-network
     healthcheck:
@@ -145,7 +145,6 @@ services:
       retries: 3
   postiz-redis:
     image: redis:7.2
-    container_name: postiz-redis
     restart: always
     healthcheck:
       test: redis-cli ping
@@ -153,14 +152,15 @@ services:
       timeout: 3s
       retries: 3
     volumes:
-      - postiz-redis-data:/data
+      - postiz-tiktok-api-redis-data:/data
+    ports:
+      - "16380:6379"
     networks:
       - postiz-network
 
   # For Application Monitoring / Debugging
   spotlight:
     pull_policy: always
-    container_name: spotlight
     ports:
       - 8969:8969/tcp
     image: ghcr.io/getsentry/spotlight:latest
@@ -171,7 +171,6 @@ services:
   # Temporal Stack
   # -----------------------
   temporal-elasticsearch:
-    container_name: temporal-elasticsearch
     image: elasticsearch:7.17.27
     environment:
       - cluster.routing.allocation.disk.threshold_enabled=true
@@ -189,7 +188,6 @@ services:
       - /var/lib/elasticsearch/data
 
   temporal-postgresql:
-    container_name: temporal-postgresql
     image: postgres:16
     environment:
       POSTGRES_PASSWORD: temporal
@@ -202,7 +200,6 @@ services:
       - /var/lib/postgresql/data
 
   temporal:
-    container_name: temporal
     ports:
       - '7233:7233'
     image: temporalio/auto-setup:1.28.1
@@ -228,7 +225,6 @@ services:
       kompose.volume.type: configMap
 
   temporal-admin-tools:
-    container_name: temporal-admin-tools
     image: temporalio/admin-tools:1.28.1-tctl-1.18.4-cli-1.4.1
     environment:
       - TEMPORAL_ADDRESS=temporal:7233
@@ -241,7 +237,6 @@ services:
     tty: true
 
   temporal-ui:
-    container_name: temporal-ui
     image: temporalio/ui:2.34.0
     environment:
       - TEMPORAL_ADDRESS=temporal:7233
@@ -252,16 +247,16 @@ services:
       - '8080:8080'
 
 volumes:
-  postgres-volume:
+  postiz-tiktok-api-postgres-data:
     external: false
 
-  postiz-redis-data:
+  postiz-tiktok-api-redis-data:
     external: false
 
-  postiz-config:
+  postiz-tiktok-api-config:
     external: false
 
-  postiz-uploads:
+  postiz-tiktok-api-uploads:
     external: false
 
 networks:
@@ -269,4 +264,3 @@ networks:
     external: false
   temporal-network:
     driver: bridge
-    name: temporal-network

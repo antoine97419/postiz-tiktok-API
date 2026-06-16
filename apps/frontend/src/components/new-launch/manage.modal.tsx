@@ -81,6 +81,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
     current,
     activateExitButton,
     setHide,
+    disabledPublish,
   } = useLaunchStore(
     useShallow((state) => ({
       hide: state.hide,
@@ -97,8 +98,16 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
       setSelectedIntegrations: state.setSelectedIntegrations,
       locked: state.locked,
       activateExitButton: state.activateExitButton,
+      disabledPublish: state.disabledPublish,
     }))
   );
+
+  const publishBlockedReason = useMemo(() => {
+    const blocked = selectedIntegrations.find(
+      (p) => disabledPublish[p.integration.id]
+    );
+    return blocked ? disabledPublish[blocked.integration.id] : null;
+  }, [selectedIntegrations, disabledPublish]);
 
   useEffect(() => {
     if (hide) {
@@ -432,11 +441,23 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
 
         if (!addEditSets) {
           mutate();
-          toaster.show(
-            !existingData.integration
-              ? t('added_successfully', 'Added successfully')
-              : t('updated_successfully', 'Updated successfully')
+          const hasTikTok = checkAllValid.some(
+            (p: any) => p?.integration?.identifier === 'tiktok'
           );
+          if (type === 'now' && hasTikTok) {
+            toaster.show(
+              t(
+                'tiktok_post_processing_notice',
+                "Your content has been submitted to TikTok. It may take a few minutes to process and become visible on your TikTok profile."
+              )
+            );
+          } else {
+            toaster.show(
+              !existingData.integration
+                ? t('added_successfully', 'Added successfully')
+                : t('updated_successfully', 'Updated successfully')
+            );
+          }
         }
         if (customClose) {
           setTimeout(() => {
@@ -623,10 +644,16 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
               </button>
             )}
             {!addEditSets && (
-              <div className="group cursor-pointer relative">
+              <div
+                className="group cursor-pointer relative"
+                title={publishBlockedReason || undefined}
+              >
                 <button
                   disabled={
-                    selectedIntegrations.length === 0 || loading || locked
+                    selectedIntegrations.length === 0 ||
+                    loading ||
+                    locked ||
+                    !!publishBlockedReason
                   }
                   onClick={schedule('schedule')}
                   className="text-white relative min-w-[180px] btnSub disabled:cursor-not-allowed disabled:opacity-80 outline-none gap-[8px] flex justify-center items-center h-[44px] rounded-[8px] bg-[#612BD3] ps-[20px] pe-[16px]"
@@ -665,8 +692,12 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                   <button
                     onClick={schedule('now')}
                     disabled={
-                      selectedIntegrations.length === 0 || loading || locked
+                      selectedIntegrations.length === 0 ||
+                      loading ||
+                      locked ||
+                      !!publishBlockedReason
                     }
+                    title={publishBlockedReason || undefined}
                     className="rounded-[8px] z-[300] disabled:cursor-not-allowed disabled:opacity-80 hidden group-hover:flex absolute bottom-[100%] -left-[12px] p-[12px] w-[206px] bg-newBgColorInner"
                   >
                     <div className="text-white rounded-[8px] bg-[#D82D7E] h-[44px] w-full flex justify-center items-center post-now">

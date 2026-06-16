@@ -391,6 +391,11 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
     comment_disabled: boolean;
     duet_disabled: boolean;
     stitch_disabled: boolean;
+    creator_nickname: string | null;
+    creator_username: string | null;
+    creator_avatar_url: string | null;
+    can_post: boolean;
+    error_message?: string;
   }> {
     if (accessToken === TIKTOK_MOCK_TOKEN && process.env.TIKTOK_MOCK_MODE === 'true') {
       console.log('[TikTok Mock] getCreatorInfo called — returning mock data');
@@ -405,6 +410,10 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
         comment_disabled: false,
         duet_disabled: false,
         stitch_disabled: false,
+        creator_nickname: 'TikTok Mock Creator',
+        creator_username: 'tiktok.mock.creator',
+        creator_avatar_url: null,
+        can_post: true,
       };
     }
 
@@ -420,6 +429,8 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
     );
     const json = await response.json();
     const data = json?.data ?? {};
+    const errorCode = json?.error?.code;
+    const canPost = !errorCode || errorCode === 'ok';
 
     console.log('[TikTok] creator_info loaded:', {
       max_video_post_duration_sec: data.max_video_post_duration_sec,
@@ -427,6 +438,8 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
       comment_disabled: data.comment_disabled,
       duet_disabled: data.duet_disabled,
       stitch_disabled: data.stitch_disabled,
+      can_post: canPost,
+      error_code: errorCode,
     });
 
     return {
@@ -437,6 +450,11 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
       comment_disabled: !!data.comment_disabled,
       duet_disabled: !!data.duet_disabled,
       stitch_disabled: !!data.stitch_disabled,
+      creator_nickname: data.creator_nickname ?? null,
+      creator_username: data.creator_username ?? null,
+      creator_avatar_url: data.creator_avatar_url ?? null,
+      can_post: canPost,
+      ...(canPost ? {} : { error_message: json?.error?.message }),
     };
   }
 

@@ -56,7 +56,8 @@ export const withProvider = function <T extends object>(params: {
       }>
     >,
     settings: T,
-    additionalSettings: any
+    additionalSettings: any,
+    integrationId?: string
   ) => Promise<string | true>;
   maximumCharacters?: number | ((settings: any) => number);
 }) {
@@ -206,7 +207,8 @@ export const withProvider = function <T extends object>(params: {
                   settings,
                   JSON.parse(
                     selectedIntegration.integration.additionalSettings || '[]'
-                  )
+                  ),
+                  props.id
                 )
               : true,
             settings,
@@ -381,7 +383,8 @@ export const getProviderSettingsMeta = (component: unknown) => {
         checkValidity?: (
           value: Array<Array<{ path: string; thumbnail?: string }>>,
           settings: any,
-          additionalSettings: any
+          additionalSettings: any,
+          integrationId?: string
         ) => Promise<string | true>;
       }
     | undefined;

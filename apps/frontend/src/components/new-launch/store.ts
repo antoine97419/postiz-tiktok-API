@@ -133,6 +133,8 @@ interface StoreState {
   setChars: (id: string, chars: number) => void;
   chars: Record<string, number>;
   setComments: (comments: boolean | 'no-media') => void;
+  disabledPublish: Record<string, string>;
+  setDisabledPublish: (id: string, reason: string | null) => void;
 }
 
 const initialState = {
@@ -155,6 +157,7 @@ const initialState = {
   global: [] as Values[],
   internal: [] as Internal[],
   chars: {},
+  disabledPublish: {} as Record<string, string>,
 };
 
 export const useLaunchStore = create<StoreState>()((set) => ({
@@ -632,6 +635,17 @@ export const useLaunchStore = create<StoreState>()((set) => ({
     set((state) => ({
       comments,
     })),
+  setDisabledPublish: (id: string, reason: string | null) =>
+    set((state) => {
+      if (!reason) {
+        if (!(id in state.disabledPublish)) {
+          return { disabledPublish: state.disabledPublish };
+        }
+        const { [id]: _omit, ...rest } = state.disabledPublish;
+        return { disabledPublish: rest };
+      }
+      return { disabledPublish: { ...state.disabledPublish, [id]: reason } };
+    }),
   setGlobalDelay: (index: number, minutes: number) =>
     set((state) => ({
       global: state.global.map((item, i) =>
